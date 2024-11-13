@@ -1,11 +1,14 @@
 import "./index.css"
-import { createEditor } from "./create-editor"
-import { htmlSchema } from "./schema"
-import { Fragment, Schema, Slice } from "@tiptap/pm/model"
-import { createRef, ref, type Ref } from 'lit/directives/ref.js'
 import {LitElement, css, html} from 'lit';
 import {customElement} from 'lit/decorators.js';
+import { createRef, ref, type Ref } from 'lit/directives/ref.js'
+import { baseKeymap } from '@tiptap/pm/commands'
+import { EditorState } from '@tiptap/pm/state'
 import { EditorView } from "@tiptap/pm/view";
+import { Fragment, Schema, Slice } from "@tiptap/pm/model"
+import { keymap } from '@tiptap/pm/keymap'
+import {schema} from "@tiptap/pm/schema-basic"
+
 
 @customElement('prose-editor')
 export class ProseEditor extends LitElement {
@@ -21,7 +24,7 @@ export class ProseEditor extends LitElement {
       }
     }
   `
-  
+
 	private editorRef: Ref<HTMLDivElement> = createRef()
 
 	render() {
@@ -31,7 +34,20 @@ export class ProseEditor extends LitElement {
 	view?: EditorView
 
     setSchema(schema: Schema) {
-        this.view = createEditor(schema, this.editorRef.value!)
+      const state = EditorState.create({
+        schema,
+        plugins: [
+          keymap(baseKeymap),
+        ],
+      })
+      const view = new EditorView(this.editorRef.value!, {
+        state,
+        dispatchTransaction(tr) {
+          const newState = view.state.apply(tr)
+          view.updateState(newState)
+        },
+      })
+      this.view = view
     }
 }
 
@@ -46,9 +62,9 @@ const editor = document.createElement('prose-editor')
 app?.appendChild(editor)
 
 setTimeout(()=>{
-    editor.setSchema(htmlSchema)
+    editor.setSchema(schema)
     const fragment = Fragment.from(
-        htmlSchema.node('paragraph', null, htmlSchema.text("abcdefghijklmno"))
+        schema.node('paragraph', null, schema.text("abcdefghijklmno"))
     )
     const slice = new Slice(fragment, 0, 0)
     const tr = editor.view?.state.tr.replace(
